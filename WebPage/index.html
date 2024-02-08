@@ -286,6 +286,7 @@
 
 
         async function scrapeAllSongs(playlist, container) {
+            console.log(playlist.id)
             const response = await fetch('http://127.0.0.1:5500/playlistContentRequest/' + playlist.id, { method: 'GET' });
             const data = await response.json();
 

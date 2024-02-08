@@ -273,19 +273,20 @@ class SpotifyRequests:
         return response;
 
 
-    def playlistContentRequest(playlistId): # Get playlist's all tracks (All names and their id's in Spotify order)
+    def playlistContentRequest(playlistId, offset = 0): # Get playlist's all tracks (All names and their id's in Spotify order)
         with open("./data/data.json", 'r') as json_file:
             data = json.load(json_file)
             accessToken = data.get("accessToken")
 
-        url = f"https://api.spotify.com/v1/playlists/{playlistId}"
+        url = f"https://api.spotify.com/v1/playlists/{playlistId}/tracks"
         headers = {
             "Authorization": f"Bearer {accessToken}"
         }
         params = {
-            "fields": "tracks.items(track(name,id))" # Without space after comma, spent to much time on this 
+            "fields": "items(track(name,id)),total", # Without space after comma, spent to much time on this 
+            "limit": 50,
+            "offset": offset
         }
-
         response = requests.get(url=url, headers=headers, params=params)
         return response;
 
