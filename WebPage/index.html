@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio page</title>
+
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f8f8;
+            color: #333;
+            overflow: hidden; 
+            background-color: #333; 
+        }
+
+        #leftStrip {
+            display: flex;
+            flex-direction: column;
+            max-width: 400px;
+            height: 100%;
+            color: #fff;
+            background-color: rgb(8, 18, 7);
+        }
+
+        #refreshButton {
+            padding: 10px;
+            width: 100%;
+            background-color: #27ae60;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        #playlists {
+            overflow-y: auto;
+            list-style-type: none;
+            direction: rtl;
+        }
+
+        #playlists li {
+            cursor: pointer;
+            flex-wrap: wrap;
+            transition: background-color 0.3s ease;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            list-style: none; 
+            text-align: center; 
+        }
+
+        #playlists li:hover {
+            background-color: rgb(40, 50, 40);
+        }
+
+        #playlists li li:hover {
+            background-color: rgb(40, 200, 40);
+        }
+
+        #controller {
+            color: #fff;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+
+        #buttons {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        #displayedtime {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        #authorizeButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: #27ae60;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #songImage {
+            width: 400; 
+            height: 400; 
+            object-fit: cover; 
+        }
+
+        button {
+            padding: 10px;
+            white-space: nowrap;
+            cursor: pointer;
+            font-size: 16px;
+            background-color: #27ae60;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body onLoad="scrapeAllPlaylists()">
+
+    
+    <div id="leftStrip">
+
+        <button id="refreshButton" onclick="refresh()">Refresh</button>
+        <div id="playlists"></div>
+
+    </div>
+
+    <div id="controller">
+
+        <h2 id="songname">default</h2>
+        <img id="songImage">
+        <h3 id="authorname">default</h3>
+        <h1 id="displayedtime">00:00</h1>
+
+        <div id="buttons">
+            <button id="shuffleButton" type="button" onclick=shufflerepeat()> Shuffle </button>
+
+            <button id="skipToPreviousButton" type="button" onclick=skipprevious()>Skip Back</button>
+
+            <button id="playButtonFr" type="button" onclick=play()>Play</button>
+        
+            <button id="stopButton" type="button" onclick=stop()>Stop</button>
+
+            <button id="skipToNextButton" type="button" onclick=skipnext()>Skip</button>
+
+            <button id="repeatButton" type="button" onclick=changerepeat()> Repeat </button> 
+        </div>
+
+        <button id="authorizeButton" type="button" onclick=redirect()>Authorize</button>
+
+    </div>
+
+
+    <script>
+
+        var repeatMode = "off";
+        var shuffleMode = false;
+
+        function redirect() {
+            fetch('http://127.0.0.1:5500/getAuthorizationRequest')
+                .then(response => response.json())
+                .then(data => {
+                    window.location.href = data.url;
+                    console.log(data.url)
+                })
+                .catch(error => console.error('Something is wrong again', error));
+        }
+
+        async function playSong(playlistId, index) {
+            try {
+                const response = await fetch('http://127.0.0.1:5500/putPlaySongRequest/' + playlistId + '/' + index, { method: 'PUT' });
+                const data = await response.text();
+                console.log(data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function play() {
+            try {
+                const response = await fetch('http://127.0.0.1:5500/putPlayRequest', { method: 'PUT' });
+                const data = await response.text();
+                console.log(data);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function skipnext() {
+            try {
+                const response = await fetch('http://127.0.0.1:5500/putNextSkipRequest', { method: 'POST' });
+                const data = await response.text();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function skipprevious() {
+            try {
+                const response = await fetch('http://127.0.0.1:5500/putPreviousSkipRequest', { method: 'POST' })
+                const data = await response.text()
+            } catch (error) {
+                console.error('Error:', error)
+            }
+        }
+
+        async function stop() {
+            try {
+                const response = await fetch('http://127.0.0.1:5500/putStopRequest', { method: 'PUT' });
+                const data = await response.text();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        var intervalId = window.setInterval(function () {
+            updateNumber();
+        }, 500);
+
+        async function updateNumber() {
+            const response = await fetch('http://127.0.0.1:5500/playbackStateRequest', { method: 'GET' });
+            var prog = await response.json();
+            let authorname = prog.item.album.artists[0].name;
+
+            repeatMode = prog.repeat_state;
+            if (repeatMode == 'off')
+                repeatButton.style.backgroundColor = 'red'
+            else
+                repeatButton.style.backgroundColor = 'green'
+            shuffleMode = prog.shuffle_state;
+            if (shuffleMode == true)
+                shuffleButton.style.backgroundColor = 'green'
+            else
+                shuffleButton.style.backgroundColor = 'red'
+
+            let image = prog.item.album.images[0].url;
+            let name = prog.item.name;
+            let time = parseInt(prog.progress_ms);
+            var minutes = Math.floor(time / 60000);
+            var seconds = ((time % 60000) / 1000).toFixed(0);
+            seconds = seconds.padStart(2, '0')
+            document.getElementById('displayedtime').innerHTML = minutes + ":" + seconds;
+            document.getElementById('authorname').innerHTML = authorname;
+            document.getElementById('songname').innerHTML = name;
+            document.getElementById('songImage').src = image;
+        }
+
+        async function scrapeAllPlaylists() {
+
+            const response = await fetch('http://127.0.0.1:5500/playlistRequest', { method: 'GET' });
+            const data = await response.json();
+
+            const container = document.getElementById('playlists');
+            container.innerHTML = '';
+            const list = document.createElement('ul');
+            container.appendChild(list);
+
+            data.items.forEach(function (playlist) {
+
+                const playlistView = document.createElement('li');
+                playlistView.style.cursor = 'pointer';
+                list.appendChild(playlistView);
+
+                const header = document.createElement('div');
+                header.onclick = function () {
+                    if (!playlistView.hasAttribute('expanded')) {
+                        scrapeAllSongs(playlist, playlistView);
+                        playlistView.setAttribute('expanded', true);
+                    } else {
+                        playlistView.removeChild(playlistView.lastChild);
+                        playlistView.removeAttribute('expanded');
+                    }
+                };
+                playlistView.appendChild(header);
+
+                const name = document.createElement('span');
+                name.appendChild(document.createTextNode(playlist.name));
+                header.appendChild(name);
+
+                const numberOfTracks = document.createElement('span');
+                numberOfTracks.appendChild(document.createTextNode(' (' + playlist.tracks.total + ' tracks)'));
+                numberOfTracks.style.color = '#aaa';
+                header.appendChild(numberOfTracks);
+            });
+        }
+
+
+        async function scrapeAllSongs(playlist, container) {
+            const response = await fetch('http://127.0.0.1:5500/playlistContentRequest/' + playlist.id, { method: 'GET' });
+            const data = await response.json();
+
+            const list = document.createElement('ul');
+            container.appendChild(list);
+
+            data.tracks.items.forEach(function (track, index) {
+
+                const trackView = document.createElement('li');
+                trackView.onclick = function () {
+                    playSong(playlist.id, index);
+                };
+                trackView.style.cursor = 'pointer';
+                list.appendChild(trackView);
+
+                const name = document.createElement('span');
+                name.appendChild(document.createTextNode(track.track.name));
+                trackView.appendChild(name);
+            });
+        }
+
+
+        async function changerepeat(){
+            if (repeatMode == 'off')   
+                repeatMode = "context"
+            else
+                repeatMode = "off"
+            try {
+                await fetch('http://127.0.0.1:5500/toggleRepeat/' + repeatMode, { method: 'PUT' });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+
+        async function shufflerepeat(){
+            shuffleMode = !shuffleMode
+            try {
+                const response = await fetch('http://127.0.0.1:5500/toggleShuffle/' + shuffleMode, { method: 'GET' });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+    </script>
+
+</body>
+
+</html>

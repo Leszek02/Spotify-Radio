@@ -1,0 +1,10 @@
+{
+  "_comment": "This is our little database where we can store user ID, token etc. The hard-coded data (clientId, clientSecret) should be inserted via web page",
+  "clientId": "",
+  "clientSecret": "",
+  "redirectUri": "",
+  "accessToken": "",
+  "refreshToken": "",
+  "clientCode": "",
+  "deviceId": ""
+}
